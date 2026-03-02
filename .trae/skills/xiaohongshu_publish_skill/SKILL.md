@@ -63,25 +63,84 @@ WebSearch("上海公积金最新政策 2026年2月", 10, "lang_zh-CN")
 
 **功能**：解决配图问题，确保图片符合内容主题
 
-**常见问题与解决方案**：
+**图片尺寸**：800x600（默认），可根据需要调整
 
-| 问题           | 解决方案                                   |
-| -------------- | ------------------------------------------ |
-| 图片无法显示   | 更换图片生成服务，使用稳定的图片源         |
-| 图片内容不符   | 使用详细的 prompt 描述，确保图片与内容相关 |
-| 图片风格不匹配 | 选择符合小红书平台风格的设计               |
+**核心特性**：
 
-**推荐图片源**：
+- ✅ **自适应字体大小**：文字自动充满图片60%以上面积
+- ✅ **矢量插画背景**：随机选择精美插画作为背景（透明度30%）
+- ✅ **卡通贴图装饰**：随机添加可爱贴图点缀
+- ✅ **完美中文支持**：自动加载系统中文字体
 
-1. **Bing Image Creator**：基于 DALL-E 3，生成质量高
-2. **Playground AI**：免费额度充足，功能全面
-3. **Fooocus**：操作简单，完全免费
-4. **备用方案**：使用 picsum.photos 或 via.placeholder.com
+**API 端点**：`POST http://localhost:3000/api/text-to-image`
+
+**请求参数**：
+
+| 参数                | 类型    | 必填 | 默认值 | 说明                 |
+| ------------------- | ------- | ---- | ------ | -------------------- |
+| text                | string  | 是   | -      | 要渲染的文字内容     |
+| width               | number  | 否   | 800    | 图片宽度（像素）     |
+| height              | number  | 否   | 600    | 图片高度（像素）     |
+| format              | string  | 否   | png    | 图片格式（png/jpeg） |
+| useIllustration     | boolean | 否   | true   | 是否使用插画背景     |
+| illustrationOpacity | number  | 否   | 0.3    | 插画透明度（0-1）    |
+| addSticker          | boolean | 否   | true   | 是否添加贴图装饰     |
 
 **示例**：
 
+```bash
+# 创建请求文件
+cat > image_request.json << 'EOF'
+{
+  "text": "早安，新的一天开始了！",
+  "width": 800,
+  "height": 600
+}
+EOF
+
+# 使用文件发送请求（自动添加插画背景和贴图）
+curl -X POST http://localhost:3000/api/text-to-image \
+  -H "Content-Type: application/json; charset=utf-8" \
+  --data-binary @image_request.json
+
+# 纯文字图片（不使用插画和贴图）
+cat > plain_text.json << 'EOF'
+{
+  "text": "这是一段测试文字",
+  "width": 800,
+  "height": 600,
+  "useIllustration": false,
+  "addSticker": false
+}
+EOF
+
+curl -X POST http://localhost:3000/api/text-to-image \
+  -H "Content-Type: application/json; charset=utf-8" \
+  --data-binary @plain_text.json
 ```
-https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Shanghai%20housing%20fund%20policy%20news%20red%20banner%20Chinese%20text&image_size=landscape_16_9
+
+**响应示例**：
+
+```json
+{
+  "success": true,
+  "data": {
+    "url": "/images/1772440124615_ip9l5n.png",
+    "width": 800,
+    "height": 600,
+    "format": "png",
+    "fontUsed": "chinese111.ttf",
+    "fontName": "chinese111",
+    "illustrationUsed": "bg15.png",
+    "stickerUsed": "heart_eyes.png"
+  }
+}
+```
+
+**访问图片**：
+
+```
+http://localhost:3000/images/1772440124615_ip9l5n.png
 ```
 
 ### 步骤 4：检查登录状态
@@ -134,9 +193,9 @@ curl -s -X POST http://localhost:18060/api/v1/publish \
 **症状**：图片链接无法访问或显示错误
 **解决方案**：
 
-- 更换图片生成服务
-- 使用稳定的图片源（如 picsum.photos）
-- 简化 prompt 描述
+- 检查文字转图片服务是否正常运行
+- 确认字体文件已正确加载
+- 查看服务日志排查错误
 
 ### 问题 2：发布超时
 
@@ -173,8 +232,8 @@ curl -s -X POST http://localhost:18060/api/v1/publish \
    - 核心信息前置，符合黄金三秒法则
 
 2. **图片优化**：
-   - 选择符合小红书风格的设计
-   - 确保图片清晰，分辨率≥800x600
+   - 默认使用插画背景，视觉效果更好
+   - 可调整插画透明度（illustrationOpacity）控制背景深浅
    - 图片内容与标题相关
 
 3. **发布策略**：
@@ -189,6 +248,7 @@ curl -s -X POST http://localhost:18060/api/v1/publish \
 | WebSearch  | 搜索政策信息     | `WebSearch("上海公积金最新政策 2026", 10)`                            |
 | WebFetch   | 获取详细政策内容 | `WebFetch("政策链接")`                                                |
 | RunCommand | 检查登录状态     | `curl http://localhost:18060/api/v1/login/status`                     |
+| RunCommand | 生成图片         | `curl -X POST http://localhost:3000/api/text-to-image -d @image.json` |
 | RunCommand | 发布文章         | `curl -X POST http://localhost:18060/api/v1/publish -d @article.json` |
 
 ## 发布检查清单
@@ -201,6 +261,7 @@ curl -s -X POST http://localhost:18060/api/v1/publish \
 - [ ] 标签相关且不超过5个
 - [ ] 登录状态正常
 - [ ] MCP 服务运行正常
+- [ ] 文字转图片服务运行正常
 
 ## 实战案例
 
@@ -210,14 +271,15 @@ curl -s -X POST http://localhost:18060/api/v1/publish \
 
 1. 搜索获取2026年2月26日最新政策
 2. 生成包含核心信息的爆款文章
-3. 生成符合主题的配图
+3. 调用文字转图片 API 生成配图（自动添加插画背景）
 4. 检查登录状态
 5. 发布到小红书
 
 **成果**：
 
 - 文章包含最新政策信息
-- 图片符合内容主题
+- 图片自动添加精美插画背景
+- 文字大小自适应，视觉效果好
 - 成功发布到小红书平台
 
 ## 注意事项
@@ -227,6 +289,7 @@ curl -s -X POST http://localhost:18060/api/v1/publish \
 3. **图片版权**：使用合法的图片源
 4. **平台规则**：遵守小红书社区规范
 5. **数据安全**：保护个人信息，避免泄露敏感数据
+6. **服务依赖**：确保文字转图片服务（端口3000）和小红书MCP服务（端口18060）都在运行
 
 ---
 
