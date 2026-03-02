@@ -158,6 +158,34 @@ async function createTextImage(text, options) {
       ctx.fillStyle = backgroundColor;
       ctx.fillRect(0, 0, width, height);
 
+      if (addSticker) {
+        const selectedStickerFile = stickerFile || getRandomSticker();
+        if (selectedStickerFile) {
+          console.log(`选择的贴图文件: ${selectedStickerFile}`);
+          const stickerImg = await loadSticker(selectedStickerFile);
+          if (stickerImg) {
+            const scaledWidth = Math.floor(width * stickerScale);
+            const scaledHeight = Math.floor(
+              stickerImg.height * (scaledWidth / stickerImg.width),
+            );
+            const pos = getRandomPosition(
+              width,
+              height,
+              scaledWidth,
+              scaledHeight,
+              30,
+            );
+
+            ctx.drawImage(stickerImg, pos.x, pos.y, scaledWidth, scaledHeight);
+            console.log(
+              `贴图绘制位置: (${pos.x}, ${pos.y}), 尺寸: ${scaledWidth}x${scaledHeight}`,
+            );
+          }
+        } else {
+          console.log("没有可用的贴图文件");
+        }
+      }
+
       ctx.fillStyle = color;
       ctx.font = `${fontSize}pt ${fontData.fontName}`;
       ctx.textBaseline = "top";
@@ -193,34 +221,6 @@ async function createTextImage(text, options) {
         );
         ctx.fillText(line, x, y);
       });
-
-      if (addSticker) {
-        const selectedStickerFile = stickerFile || getRandomSticker();
-        if (selectedStickerFile) {
-          console.log(`选择的贴图文件: ${selectedStickerFile}`);
-          const stickerImg = await loadSticker(selectedStickerFile);
-          if (stickerImg) {
-            const scaledWidth = Math.floor(width * stickerScale);
-            const scaledHeight = Math.floor(
-              stickerImg.height * (scaledWidth / stickerImg.width),
-            );
-            const pos = getRandomPosition(
-              width,
-              height,
-              scaledWidth,
-              scaledHeight,
-              30,
-            );
-
-            ctx.drawImage(stickerImg, pos.x, pos.y, scaledWidth, scaledHeight);
-            console.log(
-              `贴图绘制位置: (${pos.x}, ${pos.y}), 尺寸: ${scaledWidth}x${scaledHeight}`,
-            );
-          }
-        } else {
-          console.log("没有可用的贴图文件");
-        }
-      }
 
       const timestamp = Date.now();
       const randomStr = Math.random().toString(36).substring(7);
