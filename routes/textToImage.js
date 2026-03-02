@@ -16,6 +16,10 @@ router.post("/text-to-image", async (req, res) => {
       color,
       backgroundColor,
       fontFile,
+      useIllustration,
+      illustrationOpacity,
+      highlightKeywords,
+      highlightColor,
     } = req.body;
 
     if (!text) {
@@ -35,9 +39,13 @@ router.post("/text-to-image", async (req, res) => {
       height: parseInt(height) || 600,
       format: format || "png",
       fontSize: parseInt(fontSize) || 32,
-      color: color || "#000000",
-      backgroundColor: backgroundColor || "#ffffff",
+      color: color || "#FFFFFF",
+      backgroundColor: backgroundColor || "#1a1a2e",
       fontFile: fontFile || null,
+      useIllustration: useIllustration !== undefined ? useIllustration : true,
+      illustrationOpacity: parseFloat(illustrationOpacity) || 0.15,
+      highlightKeywords: highlightKeywords || [],
+      highlightColor: highlightColor || "#FF6B6B",
     };
 
     const result = await createTextImage(text, options);
@@ -56,6 +64,7 @@ router.post("/text-to-image", async (req, res) => {
         format: options.format,
         fontUsed: result.fontUsed,
         fontName: result.fontName,
+        illustrationUsed: result.illustrationUsed,
       },
     });
   } catch (error) {

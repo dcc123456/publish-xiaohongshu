@@ -30,3 +30,8 @@ Thumbs.db
 # Temporary files
 *.tmp
 .cache/
+
+# Temporary JSON files for publishing
+article.json
+image_request.json
+openclaw_article.json

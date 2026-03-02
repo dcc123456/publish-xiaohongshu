@@ -61,56 +61,89 @@ WebSearch("上海公积金最新政策 2026年2月", 10, "lang_zh-CN")
 
 ### 步骤 3：生成配图
 
+**重要**：生成图片必须使用json文件形式，发布成功后json文件删除
 **功能**：解决配图问题，确保图片符合内容主题
 
-**图片尺寸**：400x500（默认），可根据需要调整
+**图片尺寸**：800x600（默认），可根据需要调整
 
 **核心特性**：
 
 - ✅ **自适应字体大小**：文字自动充满图片60%以上面积
-- ✅ **矢量插画背景**：随机选择精美插画作为背景（透明度30%）
-- ✅ **卡通贴图装饰**：随机添加可爱贴图点缀
+- ✅ **深色主题**：默认深色背景 + 白色文字，视觉效果更佳
+- ✅ **关键词高亮**：支持指定关键词使用不同颜色
+- ✅ **支持换行**：文本中使用 `\n` 即可换行
+- ✅ **矢量插画背景**：随机选择精美插画作为背景（透明度15%）
 - ✅ **完美中文支持**：自动加载系统中文字体
 
 **API 端点**：`POST http://localhost:3000/api/text-to-image`
 
 **请求参数**：
 
-| 参数                | 类型    | 必填 | 默认值 | 说明                 |
-| ------------------- | ------- | ---- | ------ | -------------------- |
-| text                | string  | 是   | -      | 要渲染的文字内容     |
-| width               | number  | 否   | 400    | 图片宽度（像素）     |
-| height              | number  | 否   | 500    | 图片高度（像素）     |
-| format              | string  | 否   | png    | 图片格式（png/jpeg） |
-| useIllustration     | boolean | 否   | true   | 是否使用插画背景     |
-| illustrationOpacity | number  | 否   | 0.3    | 插画透明度（0-1）    |
-| addSticker          | boolean | 否   | true   | 是否添加贴图装饰     |
+| 参数                | 类型    | 必填 | 默认值      | 说明                           |
+| ------------------- | ------- | ---- | ----------- | ------------------------------ |
+| text                | string  | 是   | -           | 要渲染的文字内容（支持 `\n` 换行） |
+| width               | number  | 否   | 800         | 图片宽度（像素）               |
+| height              | number  | 否   | 600         | 图片高度（像素）               |
+| format              | string  | 否   | png         | 图片格式（png/jpeg）           |
+| fontSize            | number  | 否   | 32          | 字体大小（会被自适应算法调整） |
+| color               | string  | 否   | #FFFFFF     | 文字颜色（十六进制）           |
+| backgroundColor     | string  | 否   | #1a1a2e     | 背景颜色（十六进制）           |
+| useIllustration     | boolean | 否   | true        | 是否使用插画背景               |
+| illustrationFile    | string  | 否   | 随机        | 指定插画文件名                 |
+| illustrationOpacity | number  | 否   | 0.15        | 插画透明度（0-1）              |
+| highlightKeywords   | array   | 否   | []          | 需要高亮的关键词数组           |
+| highlightColor      | string  | 否   | #FF6B6B     | 高亮颜色（十六进制）           |
 
 **示例**：
 
 ```bash
-# 创建请求文件
+# 创建请求文件（基础用法）
 cat > image_request.json << 'EOF'
 {
   "text": "早安，新的一天开始了！",
-  "width": 400,
-  "height": 500
+  "width": 800,
+  "height": 600
 }
 EOF
 
-# 使用文件发送请求（自动添加插画背景和贴图）
+# 使用文件发送请求（深色主题 + 插画背景）
 curl -X POST http://localhost:3000/api/text-to-image \
   -H "Content-Type: application/json; charset=utf-8" \
   --data-binary @image_request.json
 
-# 纯文字图片（不使用插画和贴图）
+# 支持换行
+cat > newline_example.json << 'EOF'
+{
+  "text": "OpenClaw爆火背后的真相\n从神器到争议的全解析",
+  "width": 800,
+  "height": 600
+}
+EOF
+
+curl -X POST http://localhost:3000/api/text-to-image \
+  -H "Content-Type: application/json; charset=utf-8" \
+  --data-binary @newline_example.json
+
+# 关键词高亮
+cat > highlight_example.json << 'EOF'
+{
+  "text": "普通人AI副业逆袭\n从月入2000到过万的真实路径",
+  "highlightKeywords": ["AI副业", "逆袭", "过万"],
+  "highlightColor": "#FF6B6B"
+}
+EOF
+
+curl -X POST http://localhost:3000/api/text-to-image \
+  -H "Content-Type: application/json; charset=utf-8" \
+  --data-binary @highlight_example.json
+
+# 纯文字图片（不使用插画）
 cat > plain_text.json << 'EOF'
 {
   "text": "这是一段测试文字",
   "width": 800,
   "height": 600,
-  "useIllustration": false,
-  "addSticker": false
+  "useIllustration": false
 }
 EOF
 
@@ -131,8 +164,7 @@ curl -X POST http://localhost:3000/api/text-to-image \
     "format": "png",
     "fontUsed": "chinese111.ttf",
     "fontName": "chinese111",
-    "illustrationUsed": "bg15.png",
-    "stickerUsed": "heart_eyes.png"
+    "illustrationUsed": "bg15.png"
   }
 }
 ```

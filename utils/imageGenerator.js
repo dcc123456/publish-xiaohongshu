@@ -4,7 +4,6 @@ const path = require("path");
 
 const OUTPUT_DIR = path.join(__dirname, "../output/images");
 const FONTS_DIR = path.join(__dirname, "../fonts");
-const STICKERS_DIR = path.join(__dirname, "../stickers");
 const ILLUSTRATIONS_DIR = path.join(__dirname, "../illustrations");
 
 if (!fs.existsSync(OUTPUT_DIR)) {
@@ -13,10 +12,6 @@ if (!fs.existsSync(OUTPUT_DIR)) {
 
 if (!fs.existsSync(FONTS_DIR)) {
   fs.mkdirSync(FONTS_DIR, { recursive: true });
-}
-
-if (!fs.existsSync(STICKERS_DIR)) {
-  fs.mkdirSync(STICKERS_DIR, { recursive: true });
 }
 
 if (!fs.existsSync(ILLUSTRATIONS_DIR)) {
@@ -56,53 +51,6 @@ async function loadIllustration(illustrationFileName) {
     console.error(`加载插画失败: ${illustrationFileName}`, error.message);
     return null;
   }
-}
-
-function getAvailableStickers() {
-  const files = fs.readdirSync(STICKERS_DIR);
-  return files.filter(
-    (file) =>
-      file.endsWith(".png") || file.endsWith(".jpg") || file.endsWith(".jpeg"),
-  );
-}
-
-function getRandomSticker() {
-  const stickers = getAvailableStickers();
-  if (stickers.length === 0) {
-    return null;
-  }
-  const randomIndex = Math.floor(Math.random() * stickers.length);
-  return stickers[randomIndex];
-}
-
-async function loadSticker(stickerFileName) {
-  const stickerPath = path.join(STICKERS_DIR, stickerFileName);
-  if (!fs.existsSync(stickerPath)) {
-    return null;
-  }
-  try {
-    const img = await PImage.decodePNGFromStream(
-      fs.createReadStream(stickerPath),
-    );
-    return img;
-  } catch (error) {
-    console.error(`加载贴图失败: ${stickerFileName}`, error.message);
-    return null;
-  }
-}
-
-function getRandomPosition(
-  width,
-  height,
-  stickerWidth,
-  stickerHeight,
-  margin = 20,
-) {
-  const maxX = width - stickerWidth - margin;
-  const maxY = height - stickerHeight - margin;
-  const x = margin + Math.random() * Math.max(0, maxX - margin);
-  const y = margin + Math.random() * Math.max(0, maxY - margin);
-  return { x: Math.max(margin, x), y: Math.max(margin, y) };
 }
 
 function getAvailableFonts() {
@@ -155,15 +103,14 @@ async function createTextImage(text, options) {
     height = 500,
     format = "png",
     fontSize = 32,
-    color = "#000000",
-    backgroundColor = "#ffffff",
+    color = "#FFFFFF",
+    backgroundColor = "#1a1a2e",
     fontFile = null,
-    addSticker = true,
-    stickerFile = null,
-    stickerScale = 0.15,
     useIllustration = true,
     illustrationFile = null,
-    illustrationOpacity = 0.3,
+    illustrationOpacity = 0.15,
+    highlightKeywords = [],
+    highlightColor = "#FF6B6B",
   } = options;
 
   console.log("开始生成图片，文本:", text);
@@ -175,12 +122,11 @@ async function createTextImage(text, options) {
     color,
     backgroundColor,
     fontFile,
-    addSticker,
-    stickerFile,
-    stickerScale,
     useIllustration,
     illustrationFile,
     illustrationOpacity,
+    highlightKeywords,
+    highlightColor,
   });
 
   let selectedFontFile = fontFile || getRandomFont();
@@ -231,50 +177,20 @@ async function createTextImage(text, options) {
         }
       }
 
-      if (addSticker) {
-        const selectedStickerFile = stickerFile || getRandomSticker();
-        if (selectedStickerFile) {
-          console.log(`选择的贴图文件: ${selectedStickerFile}`);
-          const stickerImg = await loadSticker(selectedStickerFile);
-          if (stickerImg) {
-            const scaledWidth = Math.floor(width * stickerScale);
-            const scaledHeight = Math.floor(
-              stickerImg.height * (scaledWidth / stickerImg.width),
-            );
-            const pos = getRandomPosition(
-              width,
-              height,
-              scaledWidth,
-              scaledHeight,
-              30,
-            );
-
-            ctx.drawImage(stickerImg, pos.x, pos.y, scaledWidth, scaledHeight);
-            console.log(
-              `贴图绘制位置: (${pos.x}, ${pos.y}), 尺寸: ${scaledWidth}x${scaledHeight}`,
-            );
-          }
-        } else {
-          console.log("没有可用的贴图文件");
-        }
-      }
-
-      ctx.fillStyle = color;
-      ctx.font = `${fontSize}pt ${fontData.fontName}`;
-      ctx.textBaseline = "top";
-
       const optimalFontSize = calculateOptimalFontSize(
         ctx,
         text,
         width,
         height,
         0.6,
+        fontData.fontName,
       );
       console.log(
         `计算的最佳字体大小: ${optimalFontSize}pt (原始: ${fontSize}pt)`,
       );
 
       ctx.font = `${optimalFontSize}pt ${fontData.fontName}`;
+      ctx.textBaseline = "top";
       console.log("设置的字体:", ctx.font);
 
       const lines = wrapText(ctx, text, width - 40);
@@ -285,14 +201,18 @@ async function createTextImage(text, options) {
       const startY = (height - totalTextHeight) / 2;
 
       lines.forEach((line, index) => {
-        const textWidth = measureTextWidth(ctx, line);
-        const x = (width - textWidth) / 2;
         const y = startY + index * lineHeight;
-
-        console.log(
-          `绘制第 ${index + 1} 行: "${line}" at (${x}, ${y}), 宽度: ${textWidth}`,
+        drawTextWithHighlights(
+          ctx,
+          line,
+          width,
+          y,
+          optimalFontSize,
+          fontData.fontName,
+          color,
+          highlightKeywords,
+          highlightColor,
         );
-        ctx.fillText(line, x, y);
       });
 
       const timestamp = Date.now();
@@ -316,7 +236,6 @@ async function createTextImage(text, options) {
         url: `/images/${filename}`,
         fontUsed: selectedFontFile,
         fontName: fontData.fontName,
-        stickerUsed: addSticker ? stickerFile || getRandomSticker() : null,
         illustrationUsed: useIllustration
           ? illustrationFile || getRandomIllustration()
           : null,
@@ -343,11 +262,52 @@ async function createTextImage(text, options) {
   }
 }
 
+function drawTextWithHighlights(
+  ctx,
+  line,
+  width,
+  y,
+  fontSize,
+  fontName,
+  defaultColor,
+  highlightKeywords,
+  highlightColor,
+) {
+  ctx.font = `${fontSize}pt ${fontName}`;
+
+  const lineWidth = measureTextWidth(ctx, line);
+  let x = (width - lineWidth) / 2;
+
+  for (const char of line) {
+    const isHighlighted = highlightKeywords.some((keyword) =>
+      line.includes(keyword),
+    );
+
+    if (isHighlighted && highlightKeywords.some((k) => k.includes(char))) {
+      ctx.fillStyle = highlightColor;
+    } else {
+      ctx.fillStyle = defaultColor;
+    }
+
+    ctx.fillText(char, x, y);
+    const charWidth = measureTextWidth(ctx, char);
+    x += charWidth;
+  }
+}
+
 function wrapText(ctx, text, maxWidth) {
   const lines = [];
   let currentLine = "";
 
   for (const char of text) {
+    if (char === "\n") {
+      if (currentLine !== "") {
+        lines.push(currentLine);
+        currentLine = "";
+      }
+      continue;
+    }
+
     const testLine = currentLine + char;
     const testWidth = measureTextWidth(ctx, testLine);
 
@@ -381,6 +341,7 @@ function calculateOptimalFontSize(
   width,
   height,
   targetCoverage = 0.6,
+  fontName = "sans-serif",
 ) {
   const imageArea = width * height;
   const targetArea = imageArea * targetCoverage;
@@ -403,7 +364,7 @@ function calculateOptimalFontSize(
   let bestDiff = Infinity;
 
   while (iteration < maxIterations) {
-    ctx.font = `${fontSize}pt ${ctx.font.split(" ")[1] || "sans-serif"}`;
+    ctx.font = `${fontSize}pt ${fontName}`;
 
     const maxWidth = width - 40;
     const lines = wrapText(ctx, text, maxWidth);
@@ -448,10 +409,8 @@ module.exports = {
   getAvailableFonts,
   getRandomFont,
   calculateOptimalFontSize,
-  getAvailableStickers,
-  getRandomSticker,
-  loadSticker,
   getAvailableIllustrations,
   getRandomIllustration,
   loadIllustration,
+  drawTextWithHighlights,
 };
