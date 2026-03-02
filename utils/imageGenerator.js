@@ -5,6 +5,7 @@ const path = require("path");
 const OUTPUT_DIR = path.join(__dirname, "../output/images");
 const FONTS_DIR = path.join(__dirname, "../fonts");
 const STICKERS_DIR = path.join(__dirname, "../stickers");
+const ILLUSTRATIONS_DIR = path.join(__dirname, "../illustrations");
 
 if (!fs.existsSync(OUTPUT_DIR)) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -18,7 +19,44 @@ if (!fs.existsSync(STICKERS_DIR)) {
   fs.mkdirSync(STICKERS_DIR, { recursive: true });
 }
 
+if (!fs.existsSync(ILLUSTRATIONS_DIR)) {
+  fs.mkdirSync(ILLUSTRATIONS_DIR, { recursive: true });
+}
+
 const fontCache = new Map();
+
+function getAvailableIllustrations() {
+  const files = fs.readdirSync(ILLUSTRATIONS_DIR);
+  return files.filter(
+    (file) =>
+      file.endsWith(".png") || file.endsWith(".jpg") || file.endsWith(".jpeg"),
+  );
+}
+
+function getRandomIllustration() {
+  const illustrations = getAvailableIllustrations();
+  if (illustrations.length === 0) {
+    return null;
+  }
+  const randomIndex = Math.floor(Math.random() * illustrations.length);
+  return illustrations[randomIndex];
+}
+
+async function loadIllustration(illustrationFileName) {
+  const illustrationPath = path.join(ILLUSTRATIONS_DIR, illustrationFileName);
+  if (!fs.existsSync(illustrationPath)) {
+    return null;
+  }
+  try {
+    const img = await PImage.decodePNGFromStream(
+      fs.createReadStream(illustrationPath),
+    );
+    return img;
+  } catch (error) {
+    console.error(`加载插画失败: ${illustrationFileName}`, error.message);
+    return null;
+  }
+}
 
 function getAvailableStickers() {
   const files = fs.readdirSync(STICKERS_DIR);
@@ -123,6 +161,9 @@ async function createTextImage(text, options) {
     addSticker = true,
     stickerFile = null,
     stickerScale = 0.15,
+    useIllustration = true,
+    illustrationFile = null,
+    illustrationOpacity = 0.3,
   } = options;
 
   console.log("开始生成图片，文本:", text);
@@ -137,6 +178,9 @@ async function createTextImage(text, options) {
     addSticker,
     stickerFile,
     stickerScale,
+    useIllustration,
+    illustrationFile,
+    illustrationOpacity,
   });
 
   let selectedFontFile = fontFile || getRandomFont();
@@ -157,6 +201,35 @@ async function createTextImage(text, options) {
 
       ctx.fillStyle = backgroundColor;
       ctx.fillRect(0, 0, width, height);
+
+      if (useIllustration) {
+        const selectedIllustrationFile =
+          illustrationFile || getRandomIllustration();
+        if (selectedIllustrationFile) {
+          console.log(`选择的插画文件: ${selectedIllustrationFile}`);
+          const illustrationImg = await loadIllustration(
+            selectedIllustrationFile,
+          );
+          if (illustrationImg) {
+            const scaleX = width / illustrationImg.width;
+            const scaleY = height / illustrationImg.height;
+            const scale = Math.max(scaleX, scaleY);
+            const scaledWidth = Math.floor(illustrationImg.width * scale);
+            const scaledHeight = Math.floor(illustrationImg.height * scale);
+            const x = (width - scaledWidth) / 2;
+            const y = (height - scaledHeight) / 2;
+
+            ctx.globalAlpha = illustrationOpacity;
+            ctx.drawImage(illustrationImg, x, y, scaledWidth, scaledHeight);
+            ctx.globalAlpha = 1.0;
+            console.log(
+              `插画绘制位置: (${x}, ${y}), 尺寸: ${scaledWidth}x${scaledHeight}, 透明度: ${illustrationOpacity}`,
+            );
+          }
+        } else {
+          console.log("没有可用的插画文件");
+        }
+      }
 
       if (addSticker) {
         const selectedStickerFile = stickerFile || getRandomSticker();
@@ -244,6 +317,9 @@ async function createTextImage(text, options) {
         fontUsed: selectedFontFile,
         fontName: fontData.fontName,
         stickerUsed: addSticker ? stickerFile || getRandomSticker() : null,
+        illustrationUsed: useIllustration
+          ? illustrationFile || getRandomIllustration()
+          : null,
       };
     } catch (error) {
       console.error(`使用字体 ${selectedFontFile} 失败:`, error.message);
@@ -375,4 +451,7 @@ module.exports = {
   getAvailableStickers,
   getRandomSticker,
   loadSticker,
+  getAvailableIllustrations,
+  getRandomIllustration,
+  loadIllustration,
 };
