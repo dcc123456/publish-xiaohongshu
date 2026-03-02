@@ -1,0 +1,22 @@
+{
+  "name": "text-to-image-api",
+  "version": "1.0.0",
+  "description": "文字转图片 API 服务",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "text-to-image",
+    "api",
+    "image-generation"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "pureimage": "^0.4.13",
+    "cors": "^2.8.5"
+  }
+}
