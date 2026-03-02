@@ -63,7 +63,7 @@ WebSearch("上海公积金最新政策 2026年2月", 10, "lang_zh-CN")
 
 **功能**：解决配图问题，确保图片符合内容主题
 
-**图片尺寸**：800x600（默认），可根据需要调整
+**图片尺寸**：400x500（默认），可根据需要调整
 
 **核心特性**：
 
@@ -79,8 +79,8 @@ WebSearch("上海公积金最新政策 2026年2月", 10, "lang_zh-CN")
 | 参数                | 类型    | 必填 | 默认值 | 说明                 |
 | ------------------- | ------- | ---- | ------ | -------------------- |
 | text                | string  | 是   | -      | 要渲染的文字内容     |
-| width               | number  | 否   | 800    | 图片宽度（像素）     |
-| height              | number  | 否   | 600    | 图片高度（像素）     |
+| width               | number  | 否   | 400    | 图片宽度（像素）     |
+| height              | number  | 否   | 500    | 图片高度（像素）     |
 | format              | string  | 否   | png    | 图片格式（png/jpeg） |
 | useIllustration     | boolean | 否   | true   | 是否使用插画背景     |
 | illustrationOpacity | number  | 否   | 0.3    | 插画透明度（0-1）    |
@@ -93,8 +93,8 @@ WebSearch("上海公积金最新政策 2026年2月", 10, "lang_zh-CN")
 cat > image_request.json << 'EOF'
 {
   "text": "早安，新的一天开始了！",
-  "width": 800,
-  "height": 600
+  "width": 400,
+  "height": 500
 }
 EOF
 

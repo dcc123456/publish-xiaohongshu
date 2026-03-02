@@ -151,8 +151,8 @@ async function loadFont(fontFileName) {
 
 async function createTextImage(text, options) {
   const {
-    width = 800,
-    height = 600,
+    width = 400,
+    height = 500,
     format = "png",
     fontSize = 32,
     color = "#000000",
