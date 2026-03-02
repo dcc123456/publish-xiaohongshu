@@ -104,12 +104,24 @@ async function createTextImage(text, options) {
       ctx.font = `${fontSize}pt ${fontData.fontName}`;
       ctx.textBaseline = "top";
 
+      const optimalFontSize = calculateOptimalFontSize(
+        ctx,
+        text,
+        width,
+        height,
+        0.6,
+      );
+      console.log(
+        `计算的最佳字体大小: ${optimalFontSize}pt (原始: ${fontSize}pt)`,
+      );
+
+      ctx.font = `${optimalFontSize}pt ${fontData.fontName}`;
       console.log("设置的字体:", ctx.font);
 
       const lines = wrapText(ctx, text, width - 40);
       console.log("文本行数:", lines.length, "内容:", lines);
 
-      const lineHeight = fontSize * 1.5;
+      const lineHeight = optimalFontSize * 1.5;
       const totalTextHeight = lines.length * lineHeight;
       const startY = (height - totalTextHeight) / 2;
 
@@ -200,9 +212,77 @@ function measureTextWidth(ctx, text) {
   return width;
 }
 
+function calculateOptimalFontSize(
+  ctx,
+  text,
+  width,
+  height,
+  targetCoverage = 0.6,
+) {
+  const imageArea = width * height;
+  const targetArea = imageArea * targetCoverage;
+  const charCount = text.length;
+
+  if (charCount === 0) return 32;
+
+  const minFontSize = 12;
+  const maxFontSize = Math.min(width, height) / 2;
+
+  const estimatedFontSize = Math.sqrt(targetArea / (charCount * 1.8));
+  let fontSize = Math.max(
+    minFontSize,
+    Math.min(maxFontSize, estimatedFontSize),
+  );
+
+  const maxIterations = 20;
+  let iteration = 0;
+  let bestFontSize = fontSize;
+  let bestDiff = Infinity;
+
+  while (iteration < maxIterations) {
+    ctx.font = `${fontSize}pt ${ctx.font.split(" ")[1] || "sans-serif"}`;
+
+    const maxWidth = width - 40;
+    const lines = wrapText(ctx, text, maxWidth);
+    const lineHeight = fontSize * 1.5;
+    const totalTextHeight = lines.length * lineHeight;
+
+    let totalTextWidth = 0;
+    lines.forEach((line) => {
+      const lineWidth = measureTextWidth(ctx, line);
+      totalTextWidth = Math.max(totalTextWidth, lineWidth);
+    });
+
+    const textArea = totalTextWidth * totalTextHeight;
+    const coverage = textArea / imageArea;
+    const diff = Math.abs(coverage - targetCoverage);
+
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestFontSize = fontSize;
+    }
+
+    if (diff < 0.05) {
+      break;
+    }
+
+    if (coverage < targetCoverage) {
+      fontSize = fontSize * 1.1;
+    } else {
+      fontSize = fontSize * 0.9;
+    }
+
+    fontSize = Math.max(minFontSize, Math.min(maxFontSize, fontSize));
+    iteration++;
+  }
+
+  return Math.round(bestFontSize);
+}
+
 module.exports = {
   createTextImage,
   loadFont,
   getAvailableFonts,
   getRandomFont,
+  calculateOptimalFontSize,
 };
