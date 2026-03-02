@@ -4,6 +4,7 @@ const path = require("path");
 
 const OUTPUT_DIR = path.join(__dirname, "../output/images");
 const FONTS_DIR = path.join(__dirname, "../fonts");
+const STICKERS_DIR = path.join(__dirname, "../stickers");
 
 if (!fs.existsSync(OUTPUT_DIR)) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -13,7 +14,58 @@ if (!fs.existsSync(FONTS_DIR)) {
   fs.mkdirSync(FONTS_DIR, { recursive: true });
 }
 
+if (!fs.existsSync(STICKERS_DIR)) {
+  fs.mkdirSync(STICKERS_DIR, { recursive: true });
+}
+
 const fontCache = new Map();
+
+function getAvailableStickers() {
+  const files = fs.readdirSync(STICKERS_DIR);
+  return files.filter(
+    (file) =>
+      file.endsWith(".png") || file.endsWith(".jpg") || file.endsWith(".jpeg"),
+  );
+}
+
+function getRandomSticker() {
+  const stickers = getAvailableStickers();
+  if (stickers.length === 0) {
+    return null;
+  }
+  const randomIndex = Math.floor(Math.random() * stickers.length);
+  return stickers[randomIndex];
+}
+
+async function loadSticker(stickerFileName) {
+  const stickerPath = path.join(STICKERS_DIR, stickerFileName);
+  if (!fs.existsSync(stickerPath)) {
+    return null;
+  }
+  try {
+    const img = await PImage.decodePNGFromStream(
+      fs.createReadStream(stickerPath),
+    );
+    return img;
+  } catch (error) {
+    console.error(`加载贴图失败: ${stickerFileName}`, error.message);
+    return null;
+  }
+}
+
+function getRandomPosition(
+  width,
+  height,
+  stickerWidth,
+  stickerHeight,
+  margin = 20,
+) {
+  const maxX = width - stickerWidth - margin;
+  const maxY = height - stickerHeight - margin;
+  const x = margin + Math.random() * Math.max(0, maxX - margin);
+  const y = margin + Math.random() * Math.max(0, maxY - margin);
+  return { x: Math.max(margin, x), y: Math.max(margin, y) };
+}
 
 function getAvailableFonts() {
   const files = fs.readdirSync(FONTS_DIR);
@@ -68,6 +120,9 @@ async function createTextImage(text, options) {
     color = "#000000",
     backgroundColor = "#ffffff",
     fontFile = null,
+    addSticker = true,
+    stickerFile = null,
+    stickerScale = 0.15,
   } = options;
 
   console.log("开始生成图片，文本:", text);
@@ -79,6 +134,9 @@ async function createTextImage(text, options) {
     color,
     backgroundColor,
     fontFile,
+    addSticker,
+    stickerFile,
+    stickerScale,
   });
 
   let selectedFontFile = fontFile || getRandomFont();
@@ -136,6 +194,34 @@ async function createTextImage(text, options) {
         ctx.fillText(line, x, y);
       });
 
+      if (addSticker) {
+        const selectedStickerFile = stickerFile || getRandomSticker();
+        if (selectedStickerFile) {
+          console.log(`选择的贴图文件: ${selectedStickerFile}`);
+          const stickerImg = await loadSticker(selectedStickerFile);
+          if (stickerImg) {
+            const scaledWidth = Math.floor(width * stickerScale);
+            const scaledHeight = Math.floor(
+              stickerImg.height * (scaledWidth / stickerImg.width),
+            );
+            const pos = getRandomPosition(
+              width,
+              height,
+              scaledWidth,
+              scaledHeight,
+              30,
+            );
+
+            ctx.drawImage(stickerImg, pos.x, pos.y, scaledWidth, scaledHeight);
+            console.log(
+              `贴图绘制位置: (${pos.x}, ${pos.y}), 尺寸: ${scaledWidth}x${scaledHeight}`,
+            );
+          }
+        } else {
+          console.log("没有可用的贴图文件");
+        }
+      }
+
       const timestamp = Date.now();
       const randomStr = Math.random().toString(36).substring(7);
       const filename = `${timestamp}_${randomStr}.${format}`;
@@ -157,6 +243,7 @@ async function createTextImage(text, options) {
         url: `/images/${filename}`,
         fontUsed: selectedFontFile,
         fontName: fontData.fontName,
+        stickerUsed: addSticker ? stickerFile || getRandomSticker() : null,
       };
     } catch (error) {
       console.error(`使用字体 ${selectedFontFile} 失败:`, error.message);
@@ -285,4 +372,7 @@ module.exports = {
   getAvailableFonts,
   getRandomFont,
   calculateOptimalFontSize,
+  getAvailableStickers,
+  getRandomSticker,
+  loadSticker,
 };
