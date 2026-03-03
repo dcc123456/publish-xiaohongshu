@@ -61,7 +61,7 @@ WebSearch("上海公积金最新政策 2026年2月", 10, "lang_zh-CN")
 
 ### 步骤 3：生成配图
 
-**重要**：生成图片必须使用json文件形式，发布成功后json文件删除
+**重要**：生成图片必须使用json文件形式
 **功能**：解决配图问题，确保图片符合内容主题
 
 **图片尺寸**：800x600（默认），可根据需要调整
@@ -79,20 +79,20 @@ WebSearch("上海公积金最新政策 2026年2月", 10, "lang_zh-CN")
 
 **请求参数**：
 
-| 参数                | 类型    | 必填 | 默认值      | 说明                           |
-| ------------------- | ------- | ---- | ----------- | ------------------------------ |
-| text                | string  | 是   | -           | 要渲染的文字内容（支持 `\n` 换行） |
-| width               | number  | 否   | 800         | 图片宽度（像素）               |
-| height              | number  | 否   | 600         | 图片高度（像素）               |
-| format              | string  | 否   | png         | 图片格式（png/jpeg）           |
-| fontSize            | number  | 否   | 32          | 字体大小（会被自适应算法调整） |
-| color               | string  | 否   | #FFFFFF     | 文字颜色（十六进制）           |
-| backgroundColor     | string  | 否   | #1a1a2e     | 背景颜色（十六进制）           |
-| useIllustration     | boolean | 否   | true        | 是否使用插画背景               |
-| illustrationFile    | string  | 否   | 随机        | 指定插画文件名                 |
-| illustrationOpacity | number  | 否   | 0.15        | 插画透明度（0-1）              |
-| highlightKeywords   | array   | 否   | []          | 需要高亮的关键词数组           |
-| highlightColor      | string  | 否   | #FF6B6B     | 高亮颜色（十六进制）           |
+| 参数                | 类型    | 必填 | 默认值  | 说明                               |
+| ------------------- | ------- | ---- | ------- | ---------------------------------- |
+| text                | string  | 是   | -       | 要渲染的文字内容（支持 `\n` 换行） |
+| width               | number  | 否   | 800     | 图片宽度（像素）                   |
+| height              | number  | 否   | 600     | 图片高度（像素）                   |
+| format              | string  | 否   | png     | 图片格式（png/jpeg/jpg/webp）      |
+| fontSize            | number  | 否   | 32      | 字体大小（会被自适应算法调整）     |
+| color               | string  | 否   | #FFFFFF | 文字颜色（十六进制）               |
+| backgroundColor     | string  | 否   | #1a1a2e | 背景颜色（十六进制）               |
+| useIllustration     | boolean | 否   | true    | 是否使用插画背景                   |
+| illustrationFile    | string  | 否   | 随机    | 指定插画文件名                     |
+| illustrationOpacity | number  | 否   | 0.15    | 插画透明度（0-1）                  |
+| highlightKeywords   | array   | 否   | []      | 需要高亮的关键词数组               |
+| highlightColor      | string  | 否   | #FF6B6B | 高亮颜色（十六进制）               |
 
 **示例**：
 
@@ -173,6 +173,58 @@ curl -X POST http://localhost:3000/api/text-to-image \
 
 ```
 http://localhost:3000/images/1772440124615_ip9l5n.png
+```
+
+### 步骤 3.5：获取可用字体列表（可选）
+
+**功能**：获取系统支持的所有字体列表
+
+**API 端点**：`GET http://localhost:3000/api/fonts`
+
+**示例**：
+
+```bash
+curl http://localhost:3000/api/fonts
+```
+
+**响应示例**：
+
+```json
+{
+  "success": true,
+  "data": {
+    "fonts": [
+      "chinese111.ttf",
+      "SourceHanSansCN-Bold.ttf",
+      "simhei.ttf",
+      "simsun.ttc"
+    ],
+    "count": 4
+  }
+}
+```
+
+**用途**：
+
+- 查看系统支持的所有字体
+- 在生成图片时指定 `fontFile` 参数使用特定字体
+- 了解当前可用的中文字体资源
+
+**使用特定字体生成图片**：
+
+```bash
+cat > custom_font.json << 'EOF'
+{
+  "text": "使用特定字体生成图片",
+  "fontFile": "SourceHanSansCN-Bold.ttf",
+  "width": 800,
+  "height": 600
+}
+EOF
+
+curl -X POST http://localhost:3000/api/text-to-image \
+  -H "Content-Type: application/json; charset=utf-8" \
+  --data-binary @custom_font.json
 ```
 
 ### 步骤 4：检查登录状态
