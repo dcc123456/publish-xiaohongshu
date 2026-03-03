@@ -11,6 +11,7 @@ import {
 } from '../utils/imageGenerator';
 import { getAvailableFonts } from '../utils/fontLoader';
 import { imageConfig } from '../config/image.config';
+import { batchTextToImageHandler, textToImageHandler } from '../controllers/imageController';
 import type { TextToImageRequest } from '../types/request.types';
 import type {
   TextToImageResponse,
@@ -147,12 +148,23 @@ function handleGetFonts(_req: Request, res: Response<GetFontsResponse | ErrorRes
 
 /**
  * POST /api/text-to-image
- * @description 文字转图片接口
+ * @description 文字转图片接口（支持单个和批量）
  * @requestBody {TextToImageRequest} 文字转图片请求参数
+ * @requestBody {BatchTextToImageRequest} 批量文字转图片请求参数数组
  * @response {TextToImageResponse} 成功响应，包含图片信息
+ * @response {BatchTextToImageResponse} 批量成功响应，包含图片信息数组
  * @response {ErrorResponse} 失败响应，包含错误信息
  */
-router.post('/text-to-image', handleTextToImage);
+router.post('/text-to-image', textToImageHandler);
+
+/**
+ * POST /api/text-to-image/batch
+ * @description 批量文字转图片接口
+ * @requestBody {BatchTextToImageRequest} 批量文字转图片请求参数数组
+ * @response {BatchTextToImageResponse} 成功响应，包含图片信息数组
+ * @response {ErrorResponse} 失败响应，包含错误信息
+ */
+router.post('/text-to-image/batch', batchTextToImageHandler);
 
 /**
  * GET /api/fonts

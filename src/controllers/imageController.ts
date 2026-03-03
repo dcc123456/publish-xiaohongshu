@@ -16,8 +16,8 @@ import {
 } from '../utils/validator';
 import { HTTP_STATUS, ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants';
 import { getServerAddress } from '../config/server.config';
-import { TextToImageRequest, ImageGenerationOptions } from '../types/request.types';
-import { TextToImageResponse, ErrorResponse, ImageData } from '../types/response.types';
+import { TextToImageRequest, ImageGenerationOptions, BatchTextToImageRequest } from '../types/request.types';
+import { TextToImageResponse, ErrorResponse, ImageData, BatchTextToImageResponse, BatchResultItem } from '../types/response.types';
 import { ImageFormat } from '../types/image.types';
 import { imageConfig } from '../config/image.config';
 
@@ -217,6 +217,11 @@ export async function textToImageHandler(
       ip: request.ip,
       userAgent: request.get('user-agent'),
     });
+
+    if (Array.isArray(request.body)) {
+      logger.info('检测到数组参数，转发到批量处理接口');
+      return await batchTextToImageHandler(request, response, _next);
+    }
 
     const validation = validateTextToImageRequest(request.body);
 
@@ -425,6 +430,193 @@ export function healthCheckHandler(
 }
 
 /**
+ * 批量文字转图片控制器
+ * @description 处理 POST /api/text-to-image/batch 请求，批量生成图片
+ * @param request - Express 请求对象
+ * @param response - Express 响应对象
+ * @param _next - Express 下一个中间件函数
+ * @returns Promise<void>
+ *
+ * @example
+ * ```typescript
+ * // 在路由中使用
+ * router.post('/text-to-image/batch', batchTextToImageHandler);
+ *
+ * // 请求示例
+ * // POST /api/text-to-image/batch
+ * // Body: [{ "text": "第一张" }, { "text": "第二张" }]
+ * ```
+ */
+export async function batchTextToImageHandler(
+  request: Request,
+  response: Response,
+  _next: NextFunction
+): Promise<void> {
+  const startTime = Date.now();
+
+  try {
+    logger.info('收到批量文字转图片请求', {
+      itemCount: Array.isArray(request.body) ? request.body.length : 0,
+      ip: request.ip,
+      userAgent: request.get('user-agent'),
+    });
+
+    if (!Array.isArray(request.body)) {
+      sendErrorResponse(
+        response,
+        HTTP_STATUS.BAD_REQUEST,
+        ERROR_MESSAGES.INVALID_PARAM_FORMAT,
+        '批量生成接口需要传入数组参数'
+      );
+      return;
+    }
+
+    const requests = request.body as BatchTextToImageRequest;
+
+    if (requests.length === 0) {
+      sendErrorResponse(
+        response,
+        HTTP_STATUS.BAD_REQUEST,
+        ERROR_MESSAGES.MISSING_REQUIRED_PARAM,
+        '请求数组不能为空'
+      );
+      return;
+    }
+
+    if (requests.length > 50) {
+      sendErrorResponse(
+        response,
+        HTTP_STATUS.BAD_REQUEST,
+        ERROR_MESSAGES.INVALID_PARAM_FORMAT,
+        '单次批量生成最多支持50张图片'
+      );
+      return;
+    }
+
+    const results: BatchResultItem[] = [];
+    let successCount = 0;
+    let failedCount = 0;
+
+    for (let i = 0; i < requests.length; i++) {
+      const itemRequest = requests[i];
+      
+      try {
+        const validation = validateTextToImageRequest(itemRequest);
+        
+        if (!validation.valid) {
+          logger.warn(`第${i + 1}个请求参数验证失败`, { errors: validation.errors });
+          results.push({
+            success: false,
+            error: ERROR_MESSAGES.INVALID_PARAM_FORMAT,
+            message: `第${i + 1}项: ${validation.errors.join('; ')}`,
+          });
+          failedCount++;
+          continue;
+        }
+
+        const requestBody = itemRequest as TextToImageRequest;
+
+        if (!requestBody.text || requestBody.text.trim().length === 0) {
+          results.push({
+            success: false,
+            error: ERROR_MESSAGES.MISSING_REQUIRED_PARAM,
+            message: `第${i + 1}项: 文本内容不能为空`,
+          });
+          failedCount++;
+          continue;
+        }
+
+        const imageOptions = buildImageOptions(requestBody);
+        const result = await createTextImage(requestBody.text, {
+          width: imageOptions.width!,
+          height: imageOptions.height!,
+          format: imageOptions.format!,
+          backgroundColor: imageOptions.backgroundColor!,
+          fontSize: imageOptions.fontSize!,
+          color: imageOptions.color!,
+          fontFile: imageOptions.fontFile!,
+          illustration: {
+            enabled: imageOptions.useIllustration!,
+            fileName: requestBody.illustrationFile ?? null,
+            opacity: imageOptions.illustrationOpacity!,
+          },
+          highlight: {
+            keywords: imageOptions.highlightKeywords!,
+            color: imageOptions.highlightColor!,
+          },
+        });
+
+        const serverAddress = getServerAddress();
+        const imageUrl = `${serverAddress}${result.url}`;
+
+        results.push({
+          success: true,
+          data: {
+            url: imageUrl,
+            relativeUrl: result.url,
+            width: imageOptions.width!,
+            height: imageOptions.height!,
+            format: imageOptions.format!,
+            fontUsed: result.fontUsed,
+            fontName: result.fontName,
+            illustrationUsed: result.illustrationUsed,
+          },
+        });
+        successCount++;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : '未知错误';
+        logger.error(`第${i + 1}个图片生成失败`, error);
+        
+        results.push({
+          success: false,
+          error: ERROR_MESSAGES.IMAGE_GENERATION_FAILED,
+          message: `第${i + 1}项: ${errorMessage}`,
+        });
+        failedCount++;
+      }
+    }
+
+    const processingTime = Date.now() - startTime;
+    logger.info(`批量图片生成完成，耗时: ${processingTime}ms`, {
+      successCount,
+      failedCount,
+      total: requests.length,
+    });
+
+    if (failedCount === 0) {
+      const successResponse: BatchTextToImageResponse = {
+        success: true,
+        data: results.map(r => (r as { success: true; data: ImageData }).data),
+      };
+      response.status(HTTP_STATUS.OK).json(successResponse);
+    } else {
+      response.status(HTTP_STATUS.OK).json({
+        success: successCount > 0,
+        data: {
+          successCount,
+          failedCount,
+          results,
+        },
+      });
+    }
+  } catch (error) {
+    const processingTime = Date.now() - startTime;
+    logger.error('批量图片生成失败', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      processingTime,
+    });
+
+    sendErrorResponse(
+      response,
+      HTTP_STATUS.INTERNAL_SERVER_ERROR,
+      ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      '批量图片生成过程中发生未知错误'
+    );
+  }
+}
+
+/**
  * 图片控制器默认导出
  * @description 导出所有控制器处理函数
  */
@@ -432,4 +624,5 @@ export default {
   textToImageHandler,
   getImageConfigHandler,
   healthCheckHandler,
+  batchTextToImageHandler,
 };

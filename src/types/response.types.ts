@@ -167,3 +167,33 @@ export interface ImageGenerationResult {
  * @description 支持成功和失败两种情况的联合类型
  */
 export type ApiResponse<T = ImageData> = { success: true; data: T } | ErrorResponse;
+
+/**
+ * 批量文字转图片成功响应
+ * @description 批量生成图片成功时的响应结构
+ */
+export interface BatchTextToImageResponse extends BaseResponse {
+  success: true;
+  data: ImageData[];
+}
+
+/**
+ * 批量操作结果项
+ * @description 批量操作中单个项的结果
+ */
+export type BatchResultItem = 
+  | { success: true; data: ImageData }
+  | { success: false; error: string; message: string };
+
+/**
+ * 批量操作的部分成功响应
+ * @description 批量操作部分成功时的响应结构
+ */
+export interface PartialBatchResponse extends BaseResponse {
+  success: boolean;
+  data: {
+    successCount: number;
+    failedCount: number;
+    results: BatchResultItem[];
+  };
+}

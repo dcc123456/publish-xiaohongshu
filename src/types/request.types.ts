@@ -167,3 +167,9 @@ export interface GetFontsRequest {
    */
   includeDetails?: boolean;
 }
+
+/**
+ * 批量文字转图片请求参数
+ * @description 用于批量生成图片的请求参数
+ */
+export type BatchTextToImageRequest = TextToImageRequest[];
