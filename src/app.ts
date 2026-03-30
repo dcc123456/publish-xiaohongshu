@@ -1,6 +1,5 @@
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
-import path from 'path';
 import { config } from './config';
 import { createAppRouter } from './routes';
 import { errorHandler } from './middlewares/errorHandler';

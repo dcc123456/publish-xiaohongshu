@@ -21,6 +21,7 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.18.2",
+    "mcp-trends-hub": "^1.7.0",
     "pureimage": "^0.4.13"
   },
   "devDependencies": {
